@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin | Agentlar</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap&subset=latin-ext" rel="stylesheet">
+<style>
+:root{--paper:#f1f4ee;--ink:#13201a;--muted:#5d6b63;--line:#d3dacf;--cobalt:#2a4bd7;--saffron:#f0b429;--white:#fff;--danger:#b3261e}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink)}
+body{font-family:"Bricolage Grotesque",system-ui,sans-serif;line-height:1.5;font-size:16px}
+:focus-visible{outline:3px solid var(--cobalt);outline-offset:2px}
+.wrap{max-width:720px;margin:0 auto;padding:32px 20px 80px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:40px;gap:12px}
+.brand{font-weight:800;font-size:20px;letter-spacing:-.02em;color:var(--ink);text-decoration:none}
+.who{font-size:14px;color:var(--muted);display:flex;gap:12px;align-items:center}
+.link{background:none;border:0;padding:0;font:inherit;color:var(--cobalt);cursor:pointer;text-decoration:underline}
+h1{font-size:clamp(34px,7vw,56px);line-height:1.02;letter-spacing:-.035em;margin:0 0 12px;font-weight:800}
+.lead{color:var(--muted);margin:0 0 32px;max-width:46ch}
+.login{display:grid;gap:16px;max-width:420px}
+label{font-weight:600;font-size:14px;display:grid;gap:6px}
+input[type=text],input[type=search],input[type=password],textarea{font:inherit;padding:12px 14px;border:1.5px solid var(--ink);background:var(--white);border-radius:6px;width:100%;color:var(--ink)}
+.note{font-size:13px;color:var(--muted);margin:0}
+.err{color:var(--danger);font-size:14px;margin:0}
+.search{margin-bottom:36px}.search input{font-size:18px;padding:16px 18px}
+.cat{margin-bottom:32px}.cat h2{font-size:15px;font-weight:700;margin:0 0 4px;color:var(--cobalt)}
+.rows{border-top:1.5px solid var(--ink)}
+.row{display:grid;grid-template-columns:1fr auto;gap:4px 16px;padding:16px 4px;border-bottom:1px solid var(--line);color:inherit;text-decoration:none}
+.row:hover{background:var(--white)}
+.row b{font-size:18px;letter-spacing:-.01em}.row span{color:var(--muted);font-size:15px;grid-column:1}
+.row .go{grid-column:2;grid-row:1/span 2;align-self:center;font-weight:700;color:var(--cobalt)}
+.chip{display:inline-block;font-size:12px;background:var(--saffron);color:var(--ink);padding:2px 8px;border-radius:99px;margin-top:6px;font-weight:600;font-style:normal}
+.empty{color:var(--muted);padding:24px 0}
+.chat{display:grid;gap:14px;margin-bottom:20px}
+.msg{padding:12px 14px;border-radius:6px;white-space:pre-wrap;word-break:break-word;max-width:92%}
+.msg.user{background:var(--ink);color:var(--white);justify-self:end}
+.msg.assistant{background:var(--white);border:1px solid var(--line)}
+.composer{display:grid;gap:10px;position:sticky;bottom:0;background:var(--paper);padding:12px 0}
+.btn{font:inherit;font-weight:700;padding:12px 20px;background:var(--cobalt);color:var(--white);border:0;border-radius:6px;cursor:pointer;justify-self:start}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.alt{background:var(--ink)}
+.usage{margin:16px 0 28px}.usage small{color:var(--muted);display:block;margin-bottom:6px}
+.bar{height:10px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--saffron);transition:width .4s}.bar i.full{background:var(--danger)}
+.keybox{border:1.5px solid var(--ink);padding:16px;border-radius:6px;background:var(--white);display:grid;gap:10px;margin-bottom:24px}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+
+.form{display:grid;gap:12px;margin:24px 0}.row .acts{grid-column:2;grid-row:1/span 2;display:flex;gap:12px;align-self:center}
+</style></head><body><main class="wrap" id="app"></main>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+import { getAuth, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+/* index.html dagi CONFIG bilan bir xil qiymatlarni yozing */
+const CONFIG = { TELEGRAM_BOT:"", PROXY_URL:"", FIREBASE: { apiKey: "AIzaSyAPnIC0G1bpVAL-l6M55Qn7pLGEW9LspWI", authDomain: "agentuz-f9ff1.firebaseapp.com", projectId: "agentuz-f9ff1", appId: "1:517712990457:web:4f1e9c4fcf0616119d5228" } };
+
+const DEFAULTS = [
+  {id:"kod",name:"Kod yordamchi",category:"Dasturlash",description:"Kod yozadi, xatolarni topadi va tushuntiradi.",
+   prompt:"Sen tajribali dasturchisan. Foydalanuvchi tilida (odatda o'zbekcha) javob ber. Kodni aniq va ishlaydigan qilib yoz, qisqa tushuntirish qo'sh.",permissions:[]},
+  {id:"tarjimon",name:"Tarjimon",category:"Til",description:"O'zbek, ingliz, rus va nemis tillari orasida tarjima qiladi.",
+   prompt:"Sen professional tarjimonsan. Faqat tarjimani ber, ortiqcha izoh yozma. Til aytilmasa, o'zbekchadan inglizchaga, boshqa tildan o'zbekchaga tarjima qil.",permissions:[]},
+  {id:"nemis",name:"Nemis tili ustozi",category:"Til",description:"Nemis tilini mashq qildiradi va xatolarni tuzatadi.",
+   prompt:"Sen nemis tili ustozisan. Foydalanuvchi yozgan jumlalardagi xatolarni tuzat, qoidani o'zbekcha tushuntir va yangi mashq ber.",permissions:[]},
+  {id:"marketing",name:"Marketing yordamchi",category:"Biznes",description:"Reklama matni, post va sotuv g'oyalarini tayyorlaydi.",
+   prompt:"Sen marketing mutaxassisisan. Kichik biznes uchun qisqa, aniq va sotadigan matnlar yoz. Instagram va Telegram uchun moslashtir.",permissions:[]},
+  {id:"telegram-post",name:"Telegram kanal agenti",category:"Telegram",description:"Kanal uchun postlar rejasi va matnlarini yozadi.",
+   prompt:"Sen Telegram kanal muharririsan. Kanal mavzusiga mos post rejasi va tayyor matnlar yoz. Matnlar qisqa va qiziqarli bo'lsin.",permissions:["Telegram kanal (kelajakda)"]},
+  {id:"tahlil",name:"Ma'lumot tahlilchisi",category:"Tahlil",description:"Raqam va jadvallarni tahlil qilib, xulosa beradi.",
+   prompt:"Sen ma'lumot tahlilchisisan. Foydalanuvchi bergan raqamlarni tahlil qil, asosiy xulosalarni va keyingi qadamlarni sana.",permissions:[]},
+  {id:"yozuvchi",name:"Matn yozuvchi",category:"Yozuv",description:"Xat, maqola, ariza va rezyume yozadi.",
+   prompt:"Sen matn yozuvchisan. So'ralgan matnni toza, rasmiy yoki do'stona uslubda yoz. Kerak bo'lsa avval bitta aniqlashtiruvchi savol ber.",permissions:[]},
+  {id:"oqituvchi",name:"Dars yordamchisi",category:"Ta'lim",description:"Istalgan mavzuni oddiy tilda tushuntiradi va test tuzadi.",
+   prompt:"Sen sabrli o'qituvchisan. Mavzuni oddiy misollar bilan tushuntir, oxirida 3 ta tekshiruv savoli ber.",permissions:[]}
+];
+
+const app = initializeApp(CONFIG.FIREBASE), auth = getAuth(app), db = getFirestore(app);
+const $app = document.getElementById("app");
+function el(tag, attrs = {}, ...kids){
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)){
+    if (k === "class") n.className = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) n.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of kids.flat()) if (c != null) n.append(c.nodeType ? c : document.createTextNode(c));
+  return n;
+}
+
+function loginView(msg){
+  const name = el("input", {type:"text", placeholder:"Ismingiz"});
+  const err = el("p", {class:"err", role:"alert"}, msg || "");
+  const widget = el("div");
+  window.onTelegramAuth = async tg => {
+    try{
+      const r = await fetch(CONFIG.PROXY_URL + "/auth", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({telegram:tg, name:name.value.trim() || tg.first_name})});
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error);
+      await signInWithCustomToken(auth, d.token);
+    }catch(e){ err.textContent = e.message || "Kirib bo'lmadi"; }
+  };
+  const s = document.createElement("script");
+  s.src = "https://telegram.org/js/telegram-widget.js?22"; s.async = true;
+  s.setAttribute("data-telegram-login", CONFIG.TELEGRAM_BOT); s.setAttribute("data-size", "large");
+  s.setAttribute("data-onauth", "onTelegramAuth(user)");
+  widget.append(s);
+  $app.replaceChildren(el("div", {class:"top"}, el("span", {class:"brand"}, "Admin")), el("h1", {}, "Agentlarni boshqarish"),
+    el("div", {class:"login"}, el("label", {}, "Ism", name), widget, err));
+}
+
+async function adminView(){
+  const snap = await getDocs(collection(db, "agents"));
+  const items = snap.docs.map(d => ({id:d.id, ...d.data()}));
+  const f = {};
+  const field = (key, label, tag = "input", extra = {}) => { f[key] = el(tag, extra); return el("label", {}, label, f[key]); };
+  const msg = el("p", {class:"note"});
+
+  const form = el("div", {class:"form"},
+    field("id", "ID (lotincha, bo'sh joysiz)", "input", {type:"text"}),
+    field("name", "Nomi", "input", {type:"text"}),
+    field("category", "Kategoriya", "input", {type:"text"}),
+    field("description", "Qisqa tavsif", "input", {type:"text"}),
+    field("systemPrompt", "Agent ko'rsatmasi (system prompt)", "textarea", {rows:"5"}),
+    field("tokenLimit", "Token limiti", "input", {type:"text", value:"40000"}),
+    el("button", {class:"btn", onclick: async () => {
+      const id = f.id.value.trim();
+      if (!/^[\w-]+$/.test(id) || !f.name.value.trim()){ msg.textContent = "ID va nomni to'g'ri kiriting."; return; }
+      await setDoc(doc(db, "agents", id), {name:f.name.value.trim(), category:f.category.value.trim() || "Boshqa", description:f.description.value.trim(),
+        systemPrompt:f.systemPrompt.value.trim(), tokenLimit:Number(f.tokenLimit.value) || 40000, permissions:[]});
+      adminView();
+    }}, "Saqlash"), msg);
+
+  const rows = items.map(a => el("div", {class:"row"},
+    el("b", {}, a.name), el("span", {}, a.category + ". " + (a.description || "")),
+    el("span", {class:"acts"},
+      el("button", {class:"link", onclick:() => { f.id.value = a.id; f.name.value = a.name; f.category.value = a.category || ""; f.description.value = a.description || ""; f.systemPrompt.value = a.systemPrompt || ""; f.tokenLimit.value = a.tokenLimit || 40000; scrollTo(0, 0); }}, "Tahrirlash"),
+      el("button", {class:"link", onclick: async () => { if (confirm(a.name + " o'chirilsinmi?")){ await deleteDoc(doc(db, "agents", a.id)); adminView(); } }}, "O'chirish"))));
+
+  const seed = el("button", {class:"btn alt", onclick: async () => {
+    for (const a of DEFAULTS) await setDoc(doc(db, "agents", a.id), {name:a.name, category:a.category, description:a.description, systemPrompt:a.prompt, tokenLimit:CONFIG_LIMIT, permissions:a.permissions});
+    adminView();
+  }}, "Standart agentlarni yuklash");
+
+  $app.replaceChildren(
+    el("div", {class:"top"}, el("span", {class:"brand"}, "Admin"), el("span", {class:"who"}, el("a", {class:"link", href:"index.html"}, "Sayt"), el("button", {class:"link", onclick:() => signOut(auth)}, "Chiqish"))),
+    el("h1", {}, "Agentlar"), items.length ? null : el("p", {class:"lead"}, "Hali agent yo'q. Standart agentlarni yuklang yoki o'zingiz qo'shing."),
+    items.length ? null : seed, form, el("div", {class:"rows"}, rows));
+}
+const CONFIG_LIMIT = 40000;
+
+onAuthStateChanged(auth, async u => {
+  if (!u) return loginView();
+  const t = await u.getIdTokenResult();
+  if (!t.claims.admin){ await signOut(auth); return loginView("Bu hisob admin emas."); }
+  adminView();
+});
+</script></body></html>
