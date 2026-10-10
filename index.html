@@ -52,13 +52,19 @@ input[type=text],input[type=search],input[type=password],textarea{font:inherit;p
 <body>
 <main class="wrap" id="app"></main>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+import { getAuth, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+import { getFirestore, collection, getDocs, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
 /* ============================ SOZLAMALAR ============================ */
 const CONFIG = {
   // @BotFather'dagi bot username'i (@ belgisiz). Bo'sh bo'lsa, sinov rejimi.
   TELEGRAM_BOT: "",
-  // Cloudflare Worker manzili (worker.js). Bo'sh bo'lsa, foydalanuvchi o'z Groq kalitini kiritadi.
+  // Cloudflare Worker manzili (worker.js), oxirida "/" belgisiz. Bo'sh bo'lsa, foydalanuvchi o'z Groq kalitini kiritadi.
   PROXY_URL: "",
+  // Firebase > Project settings > General > Web app. FIREBASE + PROXY_URL to'ldirilsa, Firebase rejimi yoqiladi.
+  FIREBASE: { apiKey: "AIzaSyAPnIC0G1bpVAL-l6M55Qn7pLGEW9LspWI", authDomain: "agentuz-f9ff1.firebaseapp.com", projectId: "agentuz-f9ff1", appId: "1:517712990457:web:4f1e9c4fcf0616119d5228" },
   // Groq model nomi (faqat kalit to'g'ridan-to'g'ri ishlatilganda; proksida worker belgilaydi)
   GROQ_MODEL: "llama-3.3-70b-versatile",
   // Har bir agentga jami token limiti (kalit foydalanuvchiniki bo'lganda brauzerda hisoblanadi)
@@ -102,7 +108,31 @@ function el(tag, attrs = {}, ...kids){
   for (const c of kids.flat()) if (c != null) n.append(c.nodeType ? c : document.createTextNode(c));
   return n;
 }
-const profile = () => store.get("profile", null);
+const FB_ON = !!(CONFIG.FIREBASE.apiKey && CONFIG.PROXY_URL);
+let fbAuth = null, fbDb = null, session = null, catalog = AGENTS;
+if (FB_ON){ const fbApp = initializeApp(CONFIG.FIREBASE); fbAuth = getAuth(fbApp); fbDb = getFirestore(fbApp); }
+const profile = () => FB_ON ? session : store.get("profile", null);
+
+async function loadCatalog(){
+  try{
+    const snap = await getDocs(collection(fbDb, "agents"));
+    const list = snap.docs.map(d => ({permissions:[], ...d.data(), id:d.id}));
+    if (list.length) catalog = list;
+  }catch{}
+}
+async function fbCall(path, body){
+  const idToken = await session.user.getIdToken();
+  const r = await fetch(CONFIG.PROXY_URL + path, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({idToken, ...body})});
+  const d = await r.json().catch(() => ({}));
+  return {ok:r.ok, d};
+}
+async function fbLogin(tg, name){
+  const r = await fetch(CONFIG.PROXY_URL + "/auth", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({telegram:tg, name})});
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || "Kirib bo'lmadi");
+  const cred = await signInWithCustomToken(fbAuth, d.token);
+  await setDoc(doc(fbDb, "users", cred.user.uid), {name, telegramId:tg.id, username:tg.username || null, lastLogin:serverTimestamp()}, {merge:true});
+}
 const usageOf = id => store.get("usage:" + id, 0);
 
 /* ============================ KIRISH ============================ */
@@ -114,6 +144,12 @@ function renderLogin(){
   function finish(tg){
     const name = nameInput.value.trim();
     if (!name){ error.textContent = "Avval ismingizni yozing."; return false; }
+    if (FB_ON){
+      if (!tg){ error.textContent = "Telegram sozlanmagan. CONFIG.TELEGRAM_BOT ni to'ldiring."; return false; }
+      error.textContent = "";
+      fbLogin(tg, name).catch(e => { error.textContent = e.message || "Kirib bo'lmadi"; });
+      return true;
+    }
     store.set("profile", {name, tg: tg || null});
     route();
     return true;
@@ -155,7 +191,7 @@ function renderHome(p){
 
   function draw(){
     const term = search.value.trim().toLowerCase();
-    const found = AGENTS.filter(a => !term || (a.name + " " + a.description + " " + a.category).toLowerCase().includes(term));
+    const found = catalog.filter(a => !term || (a.name + " " + a.description + " " + a.category).toLowerCase().includes(term));
     const groups = new Map();
     found.forEach(a => groups.set(a.category, [...(groups.get(a.category) || []), a]));
     if (!groups.size){ list.replaceChildren(el("p", {class:"empty"}, "Hech narsa topilmadi. Boshqa so'z bilan qidiring.")); return; }
@@ -175,7 +211,7 @@ function renderHome(p){
   $app.replaceChildren(
     el("div", {class:"top"},
       el("span", {class:"brand"}, "Agentlar"),
-      el("span", {class:"who"}, p.name, el("button", {class:"link", onclick:() => { store.del("profile"); route(); }}, "Chiqish"))),
+      el("span", {class:"who"}, p.name, el("button", {class:"link", onclick:() => { if (FB_ON) signOut(fbAuth); else { store.del("profile"); route(); } }}, "Chiqish"))),
     el("div", {class:"search"}, search),
     list);
   draw();
@@ -206,7 +242,7 @@ function renderAgent(p, agent){
     sendBtn.disabled = busy || full;
   }
 
-  const useProxy = !!CONFIG.PROXY_URL;
+  const useProxy = FB_ON;
   const keyBox = el("div", {class:"keybox"});
   function drawKeyBox(){
     if (useProxy || store.get("groq_key", "")){ keyBox.replaceChildren(); keyBox.style.display = "none"; return; }
@@ -222,14 +258,10 @@ function renderAgent(p, agent){
 
   async function ask(history){
     const system = agent.prompt;
-    if (useProxy){
-      const r = await fetch(CONFIG.PROXY_URL, {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({telegram:p.tg, agentId:agent.id, system, messages:history})
-      });
-      const d = await r.json().catch(() => ({}));
+    if (FB_ON){
+      const {ok, d} = await fbCall("/chat", {agentId:agent.id, messages:history});
       if (d.limit){ used = d.used; limit = d.limit; }
-      if (!r.ok) throw new Error(d.error || "Agent javob bera olmadi");
+      if (!ok) throw new Error(d.error || "Agent javob bera olmadi");
       return d.reply || "";
     }
     const key = store.get("groq_key", "");
@@ -277,6 +309,7 @@ function renderAgent(p, agent){
     keyBox, chat, error,
     el("div", {class:"composer"}, input, sendBtn));
   drawKeyBox(); drawUsage();
+  if (FB_ON) fbCall("/usage", {agentId:agent.id}).then(({d}) => { if (d.limit){ used = d.used; limit = d.limit; drawUsage(); } }).catch(() => {});
 }
 
 /* ============================ YO'NALTIRISH ============================ */
@@ -285,13 +318,22 @@ function route(){
   if (!p) return renderLogin();
   const m = location.hash.match(/^#\/agent\/([\w-]+)/);
   if (m){
-    const a = AGENTS.find(x => x.id === m[1]);
+    const a = catalog.find(x => x.id === m[1]);
     if (a) return renderAgent(p, a);
   }
   renderHome(p);
 }
 addEventListener("hashchange", route);
-route();
+if (FB_ON){
+  onAuthStateChanged(fbAuth, async u => {
+    if (u){
+      const t = await u.getIdTokenResult();
+      session = {name: t.claims.name || "Foydalanuvchi", user:u, tg:null};
+      await loadCatalog();
+    } else session = null;
+    route();
+  });
+} else route();
 </script>
 </body>
 </html>
