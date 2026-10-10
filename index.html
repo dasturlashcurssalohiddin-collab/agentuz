@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentlar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap&subset=latin-ext" rel="stylesheet">
+<style>
+:root{--paper:#f1f4ee;--ink:#13201a;--muted:#5d6b63;--line:#d3dacf;--cobalt:#2a4bd7;--saffron:#f0b429;--white:#fff;--danger:#b3261e}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink)}
+body{font-family:"Bricolage Grotesque",system-ui,sans-serif;line-height:1.5;font-size:16px}
+:focus-visible{outline:3px solid var(--cobalt);outline-offset:2px}
+.wrap{max-width:720px;margin:0 auto;padding:32px 20px 80px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:40px;gap:12px}
+.brand{font-weight:800;font-size:20px;letter-spacing:-.02em;color:var(--ink);text-decoration:none}
+.who{font-size:14px;color:var(--muted);display:flex;gap:12px;align-items:center}
+.link{background:none;border:0;padding:0;font:inherit;color:var(--cobalt);cursor:pointer;text-decoration:underline}
+h1{font-size:clamp(34px,7vw,56px);line-height:1.02;letter-spacing:-.035em;margin:0 0 12px;font-weight:800}
+.lead{color:var(--muted);margin:0 0 32px;max-width:46ch}
+.login{display:grid;gap:16px;max-width:420px}
+label{font-weight:600;font-size:14px;display:grid;gap:6px}
+input[type=text],input[type=search],input[type=password],textarea{font:inherit;padding:12px 14px;border:1.5px solid var(--ink);background:var(--white);border-radius:6px;width:100%;color:var(--ink)}
+.note{font-size:13px;color:var(--muted);margin:0}
+.err{color:var(--danger);font-size:14px;margin:0}
+.search{margin-bottom:36px}.search input{font-size:18px;padding:16px 18px}
+.cat{margin-bottom:32px}.cat h2{font-size:15px;font-weight:700;margin:0 0 4px;color:var(--cobalt)}
+.rows{border-top:1.5px solid var(--ink)}
+.row{display:grid;grid-template-columns:1fr auto;gap:4px 16px;padding:16px 4px;border-bottom:1px solid var(--line);color:inherit;text-decoration:none}
+.row:hover{background:var(--white)}
+.row b{font-size:18px;letter-spacing:-.01em}.row span{color:var(--muted);font-size:15px;grid-column:1}
+.row .go{grid-column:2;grid-row:1/span 2;align-self:center;font-weight:700;color:var(--cobalt)}
+.chip{display:inline-block;font-size:12px;background:var(--saffron);color:var(--ink);padding:2px 8px;border-radius:99px;margin-top:6px;font-weight:600;font-style:normal}
+.empty{color:var(--muted);padding:24px 0}
+.chat{display:grid;gap:14px;margin-bottom:20px}
+.msg{padding:12px 14px;border-radius:6px;white-space:pre-wrap;word-break:break-word;max-width:92%}
+.msg.user{background:var(--ink);color:var(--white);justify-self:end}
+.msg.assistant{background:var(--white);border:1px solid var(--line)}
+.composer{display:grid;gap:10px;position:sticky;bottom:0;background:var(--paper);padding:12px 0}
+.btn{font:inherit;font-weight:700;padding:12px 20px;background:var(--cobalt);color:var(--white);border:0;border-radius:6px;cursor:pointer;justify-self:start}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.alt{background:var(--ink)}
+.usage{margin:16px 0 28px}.usage small{color:var(--muted);display:block;margin-bottom:6px}
+.bar{height:10px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--saffron);transition:width .4s}.bar i.full{background:var(--danger)}
+.keybox{border:1.5px solid var(--ink);padding:16px;border-radius:6px;background:var(--white);display:grid;gap:10px;margin-bottom:24px}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+</style>
+</head>
+<body>
+<main class="wrap" id="app"></main>
+
+<script>
+/* ============================ SOZLAMALAR ============================ */
+const CONFIG = {
+  // @BotFather'dagi bot username'i (@ belgisiz). Bo'sh bo'lsa, sinov rejimi.
+  TELEGRAM_BOT: "",
+  // Cloudflare Worker manzili (worker.js). Bo'sh bo'lsa, foydalanuvchi o'z Groq kalitini kiritadi.
+  PROXY_URL: "",
+  // Groq model nomi (faqat kalit to'g'ridan-to'g'ri ishlatilganda; proksida worker belgilaydi)
+  GROQ_MODEL: "llama-3.3-70b-versatile",
+  // Har bir agentga jami token limiti (kalit foydalanuvchiniki bo'lganda brauzerda hisoblanadi)
+  DEFAULT_LIMIT: 40000
+};
+
+/* Yangi agent qo'shish: shu ro'yxatga yangi element qo'shing */
+const AGENTS = [
+  {id:"kod",name:"Kod yordamchi",category:"Dasturlash",description:"Kod yozadi, xatolarni topadi va tushuntiradi.",
+   prompt:"Sen tajribali dasturchisan. Foydalanuvchi tilida (odatda o'zbekcha) javob ber. Kodni aniq va ishlaydigan qilib yoz, qisqa tushuntirish qo'sh.",permissions:[]},
+  {id:"tarjimon",name:"Tarjimon",category:"Til",description:"O'zbek, ingliz, rus va nemis tillari orasida tarjima qiladi.",
+   prompt:"Sen professional tarjimonsan. Faqat tarjimani ber, ortiqcha izoh yozma. Til aytilmasa, o'zbekchadan inglizchaga, boshqa tildan o'zbekchaga tarjima qil.",permissions:[]},
+  {id:"nemis",name:"Nemis tili ustozi",category:"Til",description:"Nemis tilini mashq qildiradi va xatolarni tuzatadi.",
+   prompt:"Sen nemis tili ustozisan. Foydalanuvchi yozgan jumlalardagi xatolarni tuzat, qoidani o'zbekcha tushuntir va yangi mashq ber.",permissions:[]},
+  {id:"marketing",name:"Marketing yordamchi",category:"Biznes",description:"Reklama matni, post va sotuv g'oyalarini tayyorlaydi.",
+   prompt:"Sen marketing mutaxassisisan. Kichik biznes uchun qisqa, aniq va sotadigan matnlar yoz. Instagram va Telegram uchun moslashtir.",permissions:[]},
+  {id:"telegram-post",name:"Telegram kanal agenti",category:"Telegram",description:"Kanal uchun postlar rejasi va matnlarini yozadi.",
+   prompt:"Sen Telegram kanal muharririsan. Kanal mavzusiga mos post rejasi va tayyor matnlar yoz. Matnlar qisqa va qiziqarli bo'lsin.",permissions:["Telegram kanal (kelajakda)"]},
+  {id:"tahlil",name:"Ma'lumot tahlilchisi",category:"Tahlil",description:"Raqam va jadvallarni tahlil qilib, xulosa beradi.",
+   prompt:"Sen ma'lumot tahlilchisisan. Foydalanuvchi bergan raqamlarni tahlil qil, asosiy xulosalarni va keyingi qadamlarni sana.",permissions:[]},
+  {id:"yozuvchi",name:"Matn yozuvchi",category:"Yozuv",description:"Xat, maqola, ariza va rezyume yozadi.",
+   prompt:"Sen matn yozuvchisan. So'ralgan matnni toza, rasmiy yoki do'stona uslubda yoz. Kerak bo'lsa avval bitta aniqlashtiruvchi savol ber.",permissions:[]},
+  {id:"oqituvchi",name:"Dars yordamchisi",category:"Ta'lim",description:"Istalgan mavzuni oddiy tilda tushuntiradi va test tuzadi.",
+   prompt:"Sen sabrli o'qituvchisan. Mavzuni oddiy misollar bilan tushuntir, oxirida 3 ta tekshiruv savoli ber.",permissions:[]}
+];
+
+/* ============================ YORDAMCHILAR ============================ */
+const $app = document.getElementById("app");
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch{} },
+  del(k){ try{ localStorage.removeItem(k); }catch{} }
+};
+function el(tag, attrs = {}, ...kids){
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)){
+    if (k === "class") n.className = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) n.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of kids.flat()) if (c != null) n.append(c.nodeType ? c : document.createTextNode(c));
+  return n;
+}
+const profile = () => store.get("profile", null);
+const usageOf = id => store.get("usage:" + id, 0);
+
+/* ============================ KIRISH ============================ */
+function renderLogin(){
+  let error = el("p", {class:"err", role:"alert"});
+  const nameInput = el("input", {type:"text", placeholder:"Masalan, Jasur", maxlength:"60"});
+  const widget = el("div");
+
+  function finish(tg){
+    const name = nameInput.value.trim();
+    if (!name){ error.textContent = "Avval ismingizni yozing."; return false; }
+    store.set("profile", {name, tg: tg || null});
+    route();
+    return true;
+  }
+
+  window.onTelegramAuth = tg => finish(tg);
+
+  if (CONFIG.TELEGRAM_BOT){
+    const s = document.createElement("script");
+    s.src = "https://telegram.org/js/telegram-widget.js?22";
+    s.async = true;
+    s.setAttribute("data-telegram-login", CONFIG.TELEGRAM_BOT);
+    s.setAttribute("data-size", "large");
+    s.setAttribute("data-request-access", "write");
+    s.setAttribute("data-onauth", "onTelegramAuth(user)");
+    widget.append(s);
+  } else {
+    widget.append(el("button", {class:"btn", onclick:() => finish(null)}, "Sinov rejimida kirish"));
+  }
+
+  $app.replaceChildren(
+    el("div", {class:"top"}, el("span", {class:"brand"}, "Agentlar")),
+    el("h1", {}, "Kerakli agentni tanlang. U ishni bajaradi."),
+    el("p", {class:"lead"}, "Kod, tarjima, marketing, Telegram va boshqa vazifalar uchun alohida agentlar."),
+    el("div", {class:"login"},
+      el("label", {}, "Ismingiz", nameInput),
+      widget,
+      el("p", {class:"note"}, CONFIG.TELEGRAM_BOT
+        ? "Telegram orqali kirasiz. Agent qayerdadir ishlashi kerak bo'lsa, alohida ruxsat so'raladi."
+        : "Telegram hali sozlanmagan, shuning uchun sinov rejimi."),
+      error)
+  );
+}
+
+/* ============================ BOSH SAHIFA ============================ */
+function renderHome(p){
+  const list = el("div");
+  const search = el("input", {type:"search", placeholder:"Agent yoki vazifani qidiring", "aria-label":"Qidiruv"});
+
+  function draw(){
+    const term = search.value.trim().toLowerCase();
+    const found = AGENTS.filter(a => !term || (a.name + " " + a.description + " " + a.category).toLowerCase().includes(term));
+    const groups = new Map();
+    found.forEach(a => groups.set(a.category, [...(groups.get(a.category) || []), a]));
+    if (!groups.size){ list.replaceChildren(el("p", {class:"empty"}, "Hech narsa topilmadi. Boshqa so'z bilan qidiring.")); return; }
+    list.replaceChildren(...[...groups].map(([cat, items]) =>
+      el("section", {class:"cat"},
+        el("h2", {}, cat),
+        el("div", {class:"rows"}, items.map(a =>
+          el("a", {class:"row", href:"#/agent/" + a.id},
+            el("b", {}, a.name),
+            el("span", {}, a.description),
+            a.permissions.length ? el("span", {}, el("i", {class:"chip"}, "Ruxsat: " + a.permissions.join(", "))) : null,
+            el("span", {class:"go"}, "Ochish"))))
+      )));
+  }
+  search.addEventListener("input", draw);
+
+  $app.replaceChildren(
+    el("div", {class:"top"},
+      el("span", {class:"brand"}, "Agentlar"),
+      el("span", {class:"who"}, p.name, el("button", {class:"link", onclick:() => { store.del("profile"); route(); }}, "Chiqish"))),
+    el("div", {class:"search"}, search),
+    list);
+  draw();
+}
+
+/* ============================ AGENT SAHIFASI ============================ */
+function renderAgent(p, agent){
+  const msgs = [];
+  let busy = false;
+  let used = usageOf(agent.id);
+  let limit = CONFIG.DEFAULT_LIMIT;
+
+  const bar = el("i");
+  const usageText = el("small");
+  const chat = el("div", {class:"chat", "aria-live":"polite"});
+  const error = el("p", {class:"err", role:"alert"});
+  const input = el("textarea", {rows:"3", placeholder:"Vazifani yozing"});
+  const sendBtn = el("button", {class:"btn"}, "Yuborish");
+
+  function drawUsage(){
+    const pct = Math.min(100, Math.round(used / limit * 100));
+    usageText.textContent = `API sarfi: ${used.toLocaleString()} / ${limit.toLocaleString()} token (${pct}%)`;
+    bar.style.width = pct + "%";
+    bar.className = used >= limit ? "full" : "";
+    const full = used >= limit;
+    input.disabled = full;
+    input.placeholder = full ? "Limit tugadi" : "Vazifani yozing";
+    sendBtn.disabled = busy || full;
+  }
+
+  const useProxy = !!CONFIG.PROXY_URL;
+  const keyBox = el("div", {class:"keybox"});
+  function drawKeyBox(){
+    if (useProxy || store.get("groq_key", "")){ keyBox.replaceChildren(); keyBox.style.display = "none"; return; }
+    keyBox.style.display = "";
+    const k = el("input", {type:"password", placeholder:"gsk_...", autocomplete:"off"});
+    keyBox.replaceChildren(
+      el("label", {}, "Groq API kalitingiz", k),
+      el("p", {class:"note"}, "Kalit faqat shu brauzerda saqlanadi va faqat Groq'ga yuboriladi. console.groq.com/keys dan oling."),
+      el("button", {class:"btn alt", onclick:() => { const v = k.value.trim(); if (v){ store.set("groq_key", v); drawKeyBox(); } }}, "Saqlash"));
+  }
+
+  function addMsg(role, text){ chat.append(el("div", {class:"msg " + role}, text)); chat.lastChild.scrollIntoView({behavior:"smooth", block:"end"}); }
+
+  async function ask(history){
+    const system = agent.prompt;
+    if (useProxy){
+      const r = await fetch(CONFIG.PROXY_URL, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({telegram:p.tg, agentId:agent.id, system, messages:history})
+      });
+      const d = await r.json().catch(() => ({}));
+      if (d.limit){ used = d.used; limit = d.limit; }
+      if (!r.ok) throw new Error(d.error || "Agent javob bera olmadi");
+      return d.reply || "";
+    }
+    const key = store.get("groq_key", "");
+    if (!key) throw new Error("Avval Groq kalitingizni kiriting.");
+    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method:"POST",
+      headers:{"Content-Type":"application/json", Authorization:"Bearer " + key},
+      body: JSON.stringify({model:CONFIG.GROQ_MODEL, messages:[{role:"system", content:system}, ...history]})
+    });
+    if (r.status === 401){ store.del("groq_key"); drawKeyBox(); throw new Error("Groq kaliti noto'g'ri. Qayta kiriting."); }
+    if (r.status === 429) throw new Error("Groq so'rov limiti vaqtincha tugadi. Birozdan keyin urinib ko'ring.");
+    if (!r.ok) throw new Error("Agent javob bera olmadi");
+    const d = await r.json();
+    used += d.usage?.total_tokens || 0;
+    store.set("usage:" + agent.id, used);
+    return d.choices?.[0]?.message?.content || "";
+  }
+
+  async function send(){
+    const text = input.value.trim();
+    if (!text || busy || used >= limit) return;
+    msgs.push({role:"user", content:text});
+    addMsg("user", text);
+    input.value = "";
+    error.textContent = "";
+    busy = true; drawUsage();
+    const wait = el("div", {class:"msg assistant"}, "Agent ishlayapti...");
+    chat.append(wait);
+    try {
+      const reply = await ask(msgs.slice(-20));
+      msgs.push({role:"assistant", content:reply});
+      wait.remove(); addMsg("assistant", reply);
+    } catch (e) {
+      wait.remove(); error.textContent = e.message || "Xatolik yuz berdi";
+    }
+    busy = false; drawUsage();
+  }
+  sendBtn.addEventListener("click", send);
+
+  $app.replaceChildren(
+    el("div", {class:"top"}, el("a", {class:"brand", href:"#/"}, "Agentlar"), el("span", {class:"who"}, p.name)),
+    el("h1", {}, agent.name),
+    el("p", {class:"lead"}, agent.description),
+    el("div", {class:"usage"}, usageText, el("div", {class:"bar"}, bar)),
+    keyBox, chat, error,
+    el("div", {class:"composer"}, input, sendBtn));
+  drawKeyBox(); drawUsage();
+}
+
+/* ============================ YO'NALTIRISH ============================ */
+function route(){
+  const p = profile();
+  if (!p) return renderLogin();
+  const m = location.hash.match(/^#\/agent\/([\w-]+)/);
+  if (m){
+    const a = AGENTS.find(x => x.id === m[1]);
+    if (a) return renderAgent(p, a);
+  }
+  renderHome(p);
+}
+addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>
