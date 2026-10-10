@@ -51,7 +51,7 @@ import { getAuth, signInWithCustomToken, onAuthStateChanged, signOut } from "htt
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
 /* index.html dagi CONFIG bilan bir xil qiymatlarni yozing */
-const CONFIG = { TELEGRAM_BOT:"", PROXY_URL:"/api", FIREBASE: { apiKey: "AIzaSyAPnIC0G1bpVAL-l6M55Qn7pLGEW9LspWI", authDomain: "agentuz-f9ff1.firebaseapp.com", projectId: "agentuz-f9ff1", appId: "1:517712990457:web:4f1e9c4fcf0616119d5228" } };
+const CONFIG = { TELEGRAM_BOT:"agentuz1209_bot", PROXY_URL:"/api", FIREBASE: { apiKey: "AIzaSyAPnIC0G1bpVAL-l6M55Qn7pLGEW9LspWI", authDomain: "agentuz-f9ff1.firebaseapp.com", projectId: "agentuz-f9ff1", appId: "1:517712990457:web:4f1e9c4fcf0616119d5228" } };
 
 const DEFAULTS = [
   {"id": "kod", "name": "Kod yordamchi", "category": "Dasturlash", "description": "Kod yozadi, xatolarni topadi va tushuntiradi.", "prompt": "Sen tajribali dasturchisan. Kodni aniq va ishlaydigan qilib yoz, qisqa tushuntirish qo'sh. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-120b", "permissions": []},
