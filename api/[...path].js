@@ -13,12 +13,10 @@ const BUILTIN_AGENTS = {"kod": {"systemPrompt": "Sen tajribali dasturchisan. Kod
 const DEFAULT_NEEDS = [["maqsad", "vazifaning maqsadi"], ["tafsilot", "vazifaga oid asosiy tafsilotlar"]];
 const NEEDS = {
   "telegram-post": [
-    ["kanal", "kanal nomi yoki @username"],
     ["mavzu", "kanal mavzusi"],
     ["auditoriya", "kanalni kimlar o'qiydi"],
     ["uslub", "post uslubi (rasmiy, do'stona, hazilli)"],
-    ["hajm", "nechta post va qaysi davrga (masalan, 1 haftaga 7 ta)"],
-    ["admin", "@agentuz1209_bot ni kanalga admin qilib qo'shdingizmi (ha/yo'q)"]
+    ["hajm", "nechta post va qaysi davrga (masalan, 1 haftaga 7 ta)"]
   ],
   "instagram": [["akkaunt", "akkaunt mavzusi"], ["auditoriya", "auditoriya"], ["uslub", "post uslubi"], ["hajm", "haftada nechta post"]],
   "marketing": [["biznes", "biznes turi"], ["mahsulot", "mahsulot yoki xizmat"], ["mijoz", "kimga sotiladi"], ["platforma", "qaysi platforma"]],
@@ -78,8 +76,36 @@ function verifyTelegram(tg) {
   return Date.now() / 1000 - Number(tg.auth_date) < 86400;
 }
 
-const VERSION = "v7";
+const VERSION = "v8";
 const safeMsg = (m) => String(m || "").replace(/[A-Za-z0-9+\/=_-]{30,}/g, "...").replace(/\s+/g, " ").slice(0, 140);
+
+// Telegram Bot API
+const tgApi = (m, p) => fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/${m}`, {
+  method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p),
+}).then((r) => r.json());
+const normChannel = (c) => {
+  const v = String(c || "").trim().replace(/^https?:\/\/t\.me\//, "@");
+  return /^@[A-Za-z0-9_]{5,32}$/.test(v) ? v : "";
+};
+
+// Postlarni kanalga yuboradi. Kanalni birinchi bog'lagan foydalanuvchi egasi hisoblanadi.
+async function sendPosts(db, uid, chat, posts) {
+  const fail = (error) => posts.map(() => ({ ok: false, error }));
+  const ref = db.collection("channels").doc(chat.slice(1).toLowerCase());
+  const snap = await ref.get();
+  if (snap.exists && snap.data().owner !== uid) return fail("bu kanal boshqa foydalanuvchiga bog'langan");
+  const botId = Number(String(process.env.TELEGRAM_BOT_TOKEN || "").split(":")[0]);
+  const me = await tgApi("getChatMember", { chat_id: chat, user_id: botId });
+  if (!me.ok || me.result?.status !== "administrator" || me.result?.can_post_messages === false)
+    return fail("bot kanalga admin (Post messages huquqi bilan) qilib qo'shilmagan");
+  if (!snap.exists) await ref.set({ owner: uid, at: FieldValue.serverTimestamp() });
+  const out = [];
+  for (const t of posts) {
+    const r = await tgApi("sendMessage", { chat_id: chat, text: t.slice(0, 4096) });
+    out.push(r.ok ? { ok: true } : { ok: false, error: String(r.description || "xato").slice(0, 80) });
+  }
+  return out;
+}
 
 module.exports = async (req, res) => {
   // Sayt boshqa domenda bo'lsagina kerak (ALLOWED_ORIGIN). Bir domenda CORS shart emas.
@@ -141,25 +167,6 @@ module.exports = async (req, res) => {
       return send(401, { error: `Qaytadan kiring (${e.code || "token"})` });
     }
 
-    // Kanalga yuborish: faqat kanal admini bo'lgan Telegram foydalanuvchi yubora oladi
-    if (path === "/publish") {
-      const { telegram, text } = body;
-      if (!verifyTelegram(telegram)) return send(401, { error: "Telegram tasdiqlanmadi. Qayta tasdiqlang." });
-      const chat = String(body.channel || "").trim().replace(/^https?:\/\/t\.me\//, "@");
-      if (!/^@[A-Za-z0-9_]{5,32}$/.test(chat)) return send(400, { error: "Kanal @username noto'g'ri" });
-      const msg = String(text || "").trim().slice(0, 4096);
-      if (!msg) return send(400, { error: "Matn bo'sh" });
-      const tgApi = (m, p) => fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/${m}`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p),
-      }).then((r) => r.json());
-      const mem = await tgApi("getChatMember", { chat_id: chat, user_id: telegram.id });
-      if (!mem.ok || !["creator", "administrator"].includes(mem.result?.status))
-        return send(403, { error: "Siz bu kanalning admini emassiz yoki bot kanalni topa olmadi" });
-      const sent = await tgApi("sendMessage", { chat_id: chat, text: msg });
-      if (!sent.ok) return send(400, { error: "Telegram: " + String(sent.description || "yuborib bo'lmadi").slice(0, 120) });
-      return send(200, { ok: true });
-    }
-
     const db = getFirestore(app());
     const agentId = String(body.agentId || "");
     if (!agentId || agentId.includes("/")) return send(404, { error: "Agent topilmadi" });
@@ -202,6 +209,11 @@ module.exports = async (req, res) => {
       if (miss.length) extra += `\n\nVazifa uchun hali yetishmayotgan ma'lumotlar:\n${miss.join("\n")}\nYetishmayotganlarni bittadan, qisqa savol bilan so'ra. Hammasi to'lmaguncha tayyor natija (post, reja, matn) yozma. Foydalanuvchi bir javobda bir nechtasini yozsa, hammasini qabul qil.`;
       else extra += "\n\nKerakli ma'lumotlarning hammasi bor. Foydalanuvchi vazifa bergan bo'lsa bajar, bermagan bo'lsa \"Endi vazifani yozing\" de.";
       extra += `\n\nFoydalanuvchi yangi ma'lumot bersa, javobing eng oxirida har biri uchun alohida qatorda [[SAQLASH: kalit=qiymat]] yoz. Kalit faqat shulardan: ${keys.join(", ")}. Foydalanuvchiga bu belgi haqida gapirma.`;
+      const tgChat = agentId === "telegram-post" && body.consent === true ? normChannel(body.channel) : "";
+      if (agentId === "telegram-post") {
+        if (tgChat) extra += `\n\nFoydalanuvchi ${tgChat} kanaliga avtomatik yuborishga rozilik bergan. Foydalanuvchi aniq vazifa bergach (ma'lumotlar to'liq bo'lgach), har bir tayyor post matnini alohida [[POST: matn]] ichida yoz (ichida [[ yoki ]] bo'lmasin), ular kanalga o'zi yuboriladi. Birinchi salomlashuvda va savol berayotganda [[POST:]] yozma. Bir javobda ko'pi bilan 5 ta post. [[POST:]] dan tashqarida qisqa izoh bering.`;
+        else extra += "\n\nKanalga avtomatik yuborish yoqilmagan. Faqat matn tayyorla va [[POST:]] belgisini ishlatma. Foydalanuvchi postni kanalga yubortirmoqchi bo'lsa, sahifadagi maydonga kanal @username ni yozib, rozilik belgisini qo'yishini ayt.";
+      }
 
       // Umumiy kunlik himoya: anonim kirish ko'p bo'lsa, Groq hisobingiz bir kunda bo'shab ketmasin
       const day = new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -248,6 +260,23 @@ module.exports = async (req, res) => {
         catch (e) { console.error(e); }
       }
       reply = reply.replace(/\[\[SAQLASH:[\s\S]*?\]\]/g, "").replace(/\[\[SAQLASH:[\s\S]*$/, "").trim();
+      // [[POST: ...]] belgilarini kanalga yuboramiz va javobda natijani ko'rsatamiz
+      let results = [];
+      if (tgChat && messages.length > 1) {
+        const posts = [...reply.matchAll(/\[\[POST:([\s\S]*?)\]\]/g)].map((m) => m[1].trim()).filter(Boolean).slice(0, 5);
+        if (posts.length) {
+          try { results = await sendPosts(db, uid, tgChat, posts); }
+          catch (e) { console.error(e); results = posts.map(() => ({ ok: false, error: "xato" })); }
+        }
+      }
+      let pi = 0;
+      reply = reply.replace(/\[\[POST:([\s\S]*?)\]\]/g, (_, t) => {
+        const txt = t.trim();
+        if (!txt) return "";
+        const r = results[pi++];
+        if (!r) return txt;
+        return r.ok ? `✅ Kanalga yuborildi:\n${txt}` : `⚠️ Yuborilmadi (${r.error}):\n${txt}`;
+      }).trim();
       return send(200, { reply, used: used + spent, limit });
     }
     return send(404, { error: "Topilmadi" });
