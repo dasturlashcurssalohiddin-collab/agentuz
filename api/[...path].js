@@ -37,6 +37,9 @@ function verifyTelegram(tg) {
   return Date.now() / 1000 - Number(tg.auth_date) < 86400;
 }
 
+const VERSION = "v4";
+const safeMsg = (m) => String(m || "").replace(/[A-Za-z0-9+\/=_-]{30,}/g, "...").replace(/\s+/g, " ").slice(0, 140);
+
 module.exports = async (req, res) => {
   // Sayt boshqa domenda bo'lsagina kerak (ALLOWED_ORIGIN). Bir domenda CORS shart emas.
   if (process.env.ALLOWED_ORIGIN) {
@@ -46,6 +49,26 @@ module.exports = async (req, res) => {
   }
   if (req.method === "OPTIONS") return res.status(204).end();
   const send = (status, obj) => res.status(status).json(obj);
+  if (req.method === "GET" && (req.url || "").split("?")[0].replace(/^\/api/, "") === "/status") {
+    // Faqat "bor/yo'q" ko'rsatiladi, qiymatlarning o'zi hech qachon chiqmaydi
+    const env = process.env;
+    const info = {
+      version: VERSION,
+      FIREBASE_PROJECT_ID: !!env.FIREBASE_PROJECT_ID,
+      FIREBASE_CLIENT_EMAIL: !!env.FIREBASE_CLIENT_EMAIL,
+      FIREBASE_PRIVATE_KEY: !!env.FIREBASE_PRIVATE_KEY,
+      FIREBASE_SERVICE_ACCOUNT: !!env.FIREBASE_SERVICE_ACCOUNT,
+      GROQ_API_KEY: !!env.GROQ_API_KEY,
+      TELEGRAM_BOT_TOKEN: !!env.TELEGRAM_BOT_TOKEN,
+    };
+    if (env.FIREBASE_SERVICE_ACCOUNT) {
+      try { const j = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT); info.jsonValid = true; info.jsonHasPrivateKey = typeof j.private_key === "string" && j.private_key.includes("BEGIN PRIVATE KEY"); info.jsonProject = j.project_id || null; }
+      catch (e) { info.jsonValid = false; info.jsonError = safeMsg(e.message); }
+    }
+    try { getAuth(app()); info.firebaseInit = "ok"; }
+    catch (e) { info.firebaseInit = "xato: " + safeMsg(e.message); }
+    return res.status(200).json(info);
+  }
   if (req.method !== "POST") return send(404, { error: "Topilmadi" });
 
   const body = req.body && typeof req.body === "object" ? req.body : {};
@@ -68,7 +91,7 @@ module.exports = async (req, res) => {
     try { authSvc = getAuth(app()); }
     catch (e) {
       console.error("Firebase sozlamasi xato:", e.message);
-      return send(500, { error: "Serverda Firebase sozlamasi noto'g'ri (Vercel: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY)" });
+      return send(500, { error: `Serverda Firebase sozlamasi noto'g'ri [${VERSION}]: ${safeMsg(e.message)}` });
     }
     let uid;
     try { uid = (await authSvc.verifyIdToken(String(body.idToken || ""))).uid; }
