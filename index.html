@@ -303,36 +303,18 @@ function renderAgent(p, agent){
   const input = el("textarea", {rows:"3", placeholder:"Vazifani yozing"});
   const sendBtn = el("button", {class:"btn"}, "Yuborish");
 
-  /* Telegram kanalga yuborish (faqat Telegram kanal agentida) */
+  /* Telegram kanalga avtomatik yuborish (faqat Telegram kanal agentida) */
   const isTg = agent.id === "telegram-post";
-  let tgData = null;
   const chanInput = el("input", {type:"text", placeholder:"@kanal_username", value:store.get("tg_channel", "")});
+  const consent = el("input", {type:"checkbox"});
+  consent.checked = !!store.get("tg_consent", false);
   chanInput.addEventListener("change", () => store.set("tg_channel", chanInput.value.trim()));
-  const tgStatus = el("p", {class:"note"}, "Yuborish uchun Telegram orqali tasdiqlang.");
-  const tgWidget = el("div");
-  const tgBox = el("div", {class:"keybox"}, el("label", {}, "Kanal @username", chanInput), tgWidget, tgStatus);
-  if (isTg){
-    window.onTgConfirm = u => { tgData = u; tgStatus.textContent = "Telegram tasdiqlandi."; };
-    const s = document.createElement("script");
-    s.src = "https://telegram.org/js/telegram-widget.js?22";
-    s.async = true;
-    s.setAttribute("data-telegram-login", CONFIG.TELEGRAM_BOT);
-    s.setAttribute("data-size", "medium");
-    s.setAttribute("data-onauth", "onTgConfirm(user)");
-    tgWidget.append(s);
-  }
-  async function publish(text, btn){
-    const channel = chanInput.value.trim();
-    if (!channel){ error.textContent = "Avval kanal @username ni yozing."; return; }
-    if (!tgData){ error.textContent = "Avval Telegram orqali tasdiqlang."; return; }
-    if (!confirm(channel + " kanaliga yuborilsinmi?")) return;
-    btn.disabled = true; error.textContent = "";
-    try {
-      const {ok, d} = await fbCall("/publish", {telegram:tgData, channel, text});
-      if (!ok){ error.textContent = d.error || "Yuborib bo'lmadi"; btn.disabled = false; return; }
-      btn.textContent = "Yuborildi";
-    } catch { error.textContent = "Yuborib bo'lmadi"; btn.disabled = false; }
-  }
+  consent.addEventListener("change", () => store.set("tg_consent", consent.checked));
+  const tgBox = el("div", {class:"keybox"},
+    el("label", {}, "Kanalingiz @username", chanInput),
+    el("label", {style:"display:flex;gap:10px;align-items:flex-start;font-weight:400"}, consent,
+      "Agent tayyorlagan postlarni shu kanalga yuborishiga roziman. Buning uchun @agentuz1209_bot ni kanalga admin qilib qo'shganman (Post messages huquqi bilan)."),
+    el("p", {class:"note"}, "Rozilik bermasangiz, agent faqat matn tayyorlaydi."));
 
   function drawUsage(){
     const pct = Math.min(100, Math.round(used / limit * 100));
@@ -357,22 +339,12 @@ function renderAgent(p, agent){
       el("button", {class:"btn alt", onclick:() => { const v = k.value.trim(); if (v){ store.set("groq_key", v); drawKeyBox(); } }}, "Saqlash"));
   }
 
-  function addMsg(role, text){
-    const m = el("div", {class:"msg " + role}, text);
-    // Salomlashuv xabarida tugma yo'q, faqat keyingi javoblarda
-    if (isTg && role === "assistant" && msgs.length > 2){
-      const b = el("button", {class:"link", style:"display:block;margin-top:8px"}, "Kanalga yuborish");
-      b.addEventListener("click", () => publish(text, b));
-      m.append(b);
-    }
-    chat.append(m);
-    m.scrollIntoView({behavior:"smooth", block:"end"});
-  }
+  function addMsg(role, text){ chat.append(el("div", {class:"msg " + role}, text)); chat.lastChild.scrollIntoView({behavior:"smooth", block:"end"}); }
 
   async function ask(history){
     const system = agent.prompt;
     if (FB_ON){
-      const {ok, d} = await fbCall("/chat", {agentId:agent.id, messages:history});
+      const {ok, d} = await fbCall("/chat", {agentId:agent.id, messages:history, ...(isTg ? {channel:chanInput.value.trim(), consent:consent.checked} : {})});
       if (d.limit){ used = d.used; limit = d.limit; }
       if (!ok) throw new Error(d.error || "Agent javob bera olmadi");
       return d.reply || "";
