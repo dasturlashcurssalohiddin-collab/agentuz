@@ -14,7 +14,7 @@ function app() {
     credential: cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+      privateKey: (process.env.FIREBASE_PRIVATE_KEY || "").trim().replace(/^["']|["']$/g, "").replace(/\\n/g, "\n"),
     }),
   });
 }
@@ -59,9 +59,18 @@ module.exports = async (req, res) => {
     }
 
     // 2) Qolganlari uchun Firebase ID token kerak
+    let authSvc;
+    try { authSvc = getAuth(app()); }
+    catch (e) {
+      console.error("Firebase sozlamasi xato:", e.message);
+      return send(500, { error: "Serverda Firebase sozlamasi noto'g'ri (Vercel: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY)" });
+    }
     let uid;
-    try { uid = (await getAuth(app()).verifyIdToken(String(body.idToken || ""))).uid; }
-    catch { return send(401, { error: "Qaytadan kiring" }); }
+    try { uid = (await authSvc.verifyIdToken(String(body.idToken || ""))).uid; }
+    catch (e) {
+      console.error("Token xatosi:", e.code, e.message);
+      return send(401, { error: `Qaytadan kiring (${e.code || "token"})` });
+    }
 
     const db = getFirestore(app());
     const agentId = String(body.agentId || "");
