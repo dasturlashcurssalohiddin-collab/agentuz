@@ -78,7 +78,7 @@ function verifyTelegram(tg) {
   return Date.now() / 1000 - Number(tg.auth_date) < 86400;
 }
 
-const VERSION = "v6";
+const VERSION = "v7";
 const safeMsg = (m) => String(m || "").replace(/[A-Za-z0-9+\/=_-]{30,}/g, "...").replace(/\s+/g, " ").slice(0, 140);
 
 module.exports = async (req, res) => {
@@ -141,6 +141,25 @@ module.exports = async (req, res) => {
       return send(401, { error: `Qaytadan kiring (${e.code || "token"})` });
     }
 
+    // Kanalga yuborish: faqat kanal admini bo'lgan Telegram foydalanuvchi yubora oladi
+    if (path === "/publish") {
+      const { telegram, text } = body;
+      if (!verifyTelegram(telegram)) return send(401, { error: "Telegram tasdiqlanmadi. Qayta tasdiqlang." });
+      const chat = String(body.channel || "").trim().replace(/^https?:\/\/t\.me\//, "@");
+      if (!/^@[A-Za-z0-9_]{5,32}$/.test(chat)) return send(400, { error: "Kanal @username noto'g'ri" });
+      const msg = String(text || "").trim().slice(0, 4096);
+      if (!msg) return send(400, { error: "Matn bo'sh" });
+      const tgApi = (m, p) => fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/${m}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p),
+      }).then((r) => r.json());
+      const mem = await tgApi("getChatMember", { chat_id: chat, user_id: telegram.id });
+      if (!mem.ok || !["creator", "administrator"].includes(mem.result?.status))
+        return send(403, { error: "Siz bu kanalning admini emassiz yoki bot kanalni topa olmadi" });
+      const sent = await tgApi("sendMessage", { chat_id: chat, text: msg });
+      if (!sent.ok) return send(400, { error: "Telegram: " + String(sent.description || "yuborib bo'lmadi").slice(0, 120) });
+      return send(200, { ok: true });
+    }
+
     const db = getFirestore(app());
     const agentId = String(body.agentId || "");
     if (!agentId || agentId.includes("/")) return send(404, { error: "Agent topilmadi" });
@@ -167,7 +186,7 @@ module.exports = async (req, res) => {
       const fields = NEEDS[agentId] || DEFAULT_NEEDS;
       const keys = fields.map((f) => f[0]);
       let known = {};
-      let extra = "\n\nQoidalar: foydalanuvchiga ismi bilan murojaat qil. Javoblar qisqa va aniq bo'lsin.";
+      let extra = "\n\nQoidalar: foydalanuvchiga ismi bilan murojaat qil. Javoblar qisqa va aniq bo'lsin. O'zingni ChatGPT yoki boshqa model nomi bilan tanishtirma, shu saytdagi yordamchi agent deb tanishtir.";
       try {
         const u = (await db.collection("users").doc(uid).get()).data() || {};
         if (u.profile && typeof u.profile === "object") {
