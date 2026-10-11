@@ -114,7 +114,13 @@ module.exports = async (req, res) => {
         }),
       });
       if (r.status === 429) return send(429, { error: "Groq limiti vaqtincha tugadi. Birozdan keyin urinib ko'ring.", used, limit });
-      if (!r.ok) return send(502, { error: "Agent javob bera olmadi", used, limit });
+      if (!r.ok) {
+        // Sababini ko'rsatamiz (kalit yoki model xatosini tezda topish uchun); kalitning o'zi hech qachon qaytarilmaydi
+        let why = "";
+        try { why = ((await r.json())?.error?.message || "").replace(/\s+/g, " ").slice(0, 160); } catch {}
+        console.error("Groq xatosi", r.status, model, why);
+        return send(502, { error: `Agent javob bera olmadi (Groq ${r.status}, model: ${model}${why ? ": " + why : ""})`, used, limit });
+      }
       const d = await r.json();
       const spent = d.usage?.total_tokens || 0;
       await Promise.all([
