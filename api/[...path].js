@@ -76,7 +76,7 @@ function verifyTelegram(tg) {
   return Date.now() / 1000 - Number(tg.auth_date) < 86400;
 }
 
-const VERSION = "v8";
+const VERSION = "v9";
 const safeMsg = (m) => String(m || "").replace(/[A-Za-z0-9+\/=_-]{30,}/g, "...").replace(/\s+/g, " ").slice(0, 140);
 
 // Telegram Bot API
@@ -206,12 +206,12 @@ module.exports = async (req, res) => {
       const have = fields.filter(([k]) => known[k]).map(([k, l]) => `- ${l}: ${clean(known[k], 300)}`);
       const miss = fields.filter(([k]) => !known[k]).map(([k, l]) => `- ${l}`);
       if (have.length) extra += `\n\nAvval olingan ma'lumotlar (QAYTA SO'RAMA):\n${have.join("\n")}`;
-      if (miss.length) extra += `\n\nVazifa uchun hali yetishmayotgan ma'lumotlar:\n${miss.join("\n")}\nYetishmayotganlarni bittadan, qisqa savol bilan so'ra. Hammasi to'lmaguncha tayyor natija (post, reja, matn) yozma. Foydalanuvchi bir javobda bir nechtasini yozsa, hammasini qabul qil.`;
+      if (miss.length) extra += `\n\nVazifa uchun hali yetishmayotgan ma'lumotlar:\n${miss.join("\n")}\nFoydalanuvchi hali vazifa bermagan bo'lsa, yetishmayotganlarni bittadan, qisqa savol bilan so'ra. Agar foydalanuvchi aniq vazifa bergan bo'lsa (masalan, \"shu mavzuda matn yoz\"), ma'lumot yetishmasa ham darhol vazifani bajar, kerak bo'lsa oqilona taxmin qil va oxirida bitta aniqlashtiruvchi savol ber. Foydalanuvchi bir javobda bir nechtasini yozsa, hammasini qabul qil.`;
       else extra += "\n\nKerakli ma'lumotlarning hammasi bor. Foydalanuvchi vazifa bergan bo'lsa bajar, bermagan bo'lsa \"Endi vazifani yozing\" de.";
       extra += `\n\nFoydalanuvchi yangi ma'lumot bersa, javobing eng oxirida har biri uchun alohida qatorda [[SAQLASH: kalit=qiymat]] yoz. Kalit faqat shulardan: ${keys.join(", ")}. Foydalanuvchiga bu belgi haqida gapirma.`;
       const tgChat = agentId === "telegram-post" && body.consent === true ? normChannel(body.channel) : "";
       if (agentId === "telegram-post") {
-        if (tgChat) extra += `\n\nFoydalanuvchi ${tgChat} kanaliga avtomatik yuborishga rozilik bergan. Foydalanuvchi aniq vazifa bergach (ma'lumotlar to'liq bo'lgach), har bir tayyor post matnini alohida [[POST: matn]] ichida yoz (ichida [[ yoki ]] bo'lmasin), ular kanalga o'zi yuboriladi. Birinchi salomlashuvda va savol berayotganda [[POST:]] yozma. Bir javobda ko'pi bilan 5 ta post. [[POST:]] dan tashqarida qisqa izoh bering.`;
+        if (tgChat) extra += `\n\nFoydalanuvchi ${tgChat} kanaliga avtomatik yuborishga rozilik bergan. Foydalanuvchi aniq vazifa bergach, har bir tayyor post matnini alohida [[POST: matn]] ichida yoz (ichida [[ yoki ]] bo'lmasin), ular kanalga o'zi yuboriladi. Birinchi salomlashuvda va savol berayotganda [[POST:]] yozma. Bir javobda ko'pi bilan 5 ta post. [[POST:]] dan tashqarida qisqa izoh bering.`;
         else extra += "\n\nKanalga avtomatik yuborish yoqilmagan. Faqat matn tayyorla va [[POST:]] belgisini ishlatma. Foydalanuvchi postni kanalga yubortirmoqchi bo'lsa, sahifadagi maydonga kanal @username ni yozib, rozilik belgisini qo'yishini ayt.";
       }
 
