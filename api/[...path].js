@@ -33,6 +33,9 @@ const NEEDS = {
   "reja": [["maqsad", "o'qish maqsadi"], ["vaqt", "kuniga qancha vaqt"], ["daraja", "hozirgi daraja"]]
 };
 
+// Kanalga avtomatik yuborish mumkin bo'lgan agentlar
+const TG_AGENTS = new Set(["telegram-post", "instagram", "marketing", "reklama", "yozuvchi", "hikoya"]);
+
 // Kalit qanday joylangan bo'lmasin (\n belgilari, bo'sh joylar, qo'shtirnoq, bitta qator) to'g'ri PEM'ga keltiriladi
 function normalizePem(raw) {
   const body = String(raw || "")
@@ -76,7 +79,7 @@ function verifyTelegram(tg) {
   return Date.now() / 1000 - Number(tg.auth_date) < 86400;
 }
 
-const VERSION = "v10";
+const VERSION = "v11";
 const safeMsg = (m) => String(m || "").replace(/[A-Za-z0-9+\/=_-]{30,}/g, "...").replace(/\s+/g, " ").slice(0, 140);
 
 // Telegram Bot API
@@ -209,10 +212,13 @@ module.exports = async (req, res) => {
       if (miss.length) extra += `\n\nVazifa uchun hali yetishmayotgan ma'lumotlar:\n${miss.join("\n")}\nFoydalanuvchi hali vazifa bermagan bo'lsa, yetishmayotganlarni bittadan, qisqa savol bilan so'ra. Agar foydalanuvchi aniq vazifa bergan bo'lsa (masalan, \"shu mavzuda matn yoz\"), ma'lumot yetishmasa ham darhol vazifani bajar, kerak bo'lsa oqilona taxmin qil va oxirida bitta aniqlashtiruvchi savol ber. Foydalanuvchi bir javobda bir nechtasini yozsa, hammasini qabul qil.`;
       else extra += "\n\nKerakli ma'lumotlarning hammasi bor. Foydalanuvchi vazifa bergan bo'lsa bajar, bermagan bo'lsa \"Endi vazifani yozing\" de.";
       extra += `\n\nFoydalanuvchi yangi ma'lumot bersa, javobing eng oxirida har biri uchun alohida qatorda [[SAQLASH: kalit=qiymat]] yoz. Kalit faqat shulardan: ${keys.join(", ")}. Foydalanuvchiga bu belgi haqida gapirma.`;
-      const tgChat = agentId === "telegram-post" && body.consent === true ? normChannel(body.channel) : "";
-      if (agentId === "telegram-post") {
-        if (tgChat) extra += `\n\nFoydalanuvchi ${tgChat} kanaliga avtomatik yuborishga rozilik bergan. Foydalanuvchi kanalga biror matn yozishni so'rasa, aynan SO'RALGAN matnni tayyorla va [[POST: matn]] ichiga yoz, u kanalga o'zi yuboriladi. [[POST: ]] ichida faqat kanalga chiqadigan tayyor matn bo'lsin: hech qachon savol, salomlashuv, o'zingni tanishtirish yoki izoh yozma. Izohni [[POST: ]] dan tashqarida qisqa yoz. Foydalanuvchi vazifa bermagan bo'lsa yoki sen savol berayotgan bo'lsang, [[POST: ]] ishlatma. Bir javobda ko'pi bilan 5 ta post. Misol: foydalanuvchi "kanalga salom deb yoz" desa, javobing: Mana post:\n[[POST: Salom, aziz kanal a'zolari!]]`;
-        else extra += "\n\nKanalga avtomatik yuborish yoqilmagan. Faqat matn tayyorla va [[POST:]] belgisini ishlatma. Foydalanuvchi postni kanalga yubortirmoqchi bo'lsa, sahifadagi maydonga kanal @username ni yozib, rozilik belgisini qo'yishini ayt.";
+      const tgChat = TG_AGENTS.has(agentId) && body.consent === true ? normChannel(body.channel) : "";
+      if (TG_AGENTS.has(agentId)) {
+        const when = agentId === "telegram-post"
+          ? "Foydalanuvchi post matnini so'rasa"
+          : "Foydalanuvchi matnni kanalga yuborishni (tashlash, joylash, yozish) aniq so'rasagina";
+        if (tgChat) extra += `\n\nFoydalanuvchi ${tgChat} kanaliga avtomatik yuborishga rozilik bergan. ${when}, aynan SO'RALGAN matnni tayyorla va [[POST: matn]] ichiga yoz, u kanalga o'zi yuboriladi. [[POST: ]] ichida faqat kanalga chiqadigan tayyor matn bo'lsin: hech qachon savol, salomlashuv, o'zingni tanishtirish yoki izoh yozma. Izohni [[POST: ]] dan tashqarida qisqa yoz. Foydalanuvchi kanalga yuborishni so'ramagan bo'lsa (masalan, faqat g'oya, reja yoki ro'yxat so'ragan bo'lsa), vazifa bermagan bo'lsa yoki sen savol berayotgan bo'lsang, [[POST: ]] ishlatma, oddiy javob ber. Bir javobda ko'pi bilan 5 ta post. Misol: foydalanuvchi "kanalga salom deb yoz" desa, javobing: Mana post:\n[[POST: Salom, aziz kanal a'zolari!]]`;
+        else extra += "\n\nKanalga avtomatik yuborish yoqilmagan. Faqat matn tayyorla va [[POST:]] belgisini ishlatma. Foydalanuvchi matnni kanalga yubortirmoqchi bo'lsa, sahifadagi maydonga kanal @username ni yozib, rozilik belgisini qo'yishini ayt.";
       }
 
       // Umumiy kunlik himoya: anonim kirish ko'p bo'lsa, Groq hisobingiz bir kunda bo'shab ketmasin
