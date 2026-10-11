@@ -23,6 +23,7 @@ h1{font-size:clamp(34px,7vw,56px);line-height:1.02;letter-spacing:-.035em;margin
 .login{display:grid;gap:16px;max-width:420px}
 label{font-weight:600;font-size:14px;display:grid;gap:6px}
 input[type=text],input[type=search],input[type=password],textarea{font:inherit;padding:12px 14px;border:1.5px solid var(--ink);background:var(--white);border-radius:6px;width:100%;color:var(--ink)}
+select{font:inherit;padding:12px 14px;border:1.5px solid var(--ink);background:var(--white);border-radius:6px;color:var(--ink)}
 .note{font-size:13px;color:var(--muted);margin:0}
 .err{color:var(--danger);font-size:14px;margin:0}
 .search{margin-bottom:36px}.search input{font-size:18px;padding:16px 18px}
@@ -80,45 +81,69 @@ const CONFIG = {
 
 /* Yangi agent qo'shish: shu ro'yxatga yangi element qo'shing */
 const AGENTS = [
-  {"id": "kod", "name": "Kod yordamchi", "category": "Dasturlash", "description": "Kod yozadi, xatolarni topadi va tushuntiradi.", "prompt": "Sen tajribali dasturchisan. Kodni aniq va ishlaydigan qilib yoz, qisqa tushuntirish qo'sh. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-120b", "permissions": []},
-  {"id": "web", "name": "Veb dasturchi", "category": "Dasturlash", "description": "HTML, CSS va JavaScript bilan sayt va sahifalar yozadi.", "prompt": "Sen veb dasturchisan. Toza, mobilga moslashgan HTML, CSS va JavaScript kod yoz. Kodni to'liq ber va qanday ishga tushirishni qisqa tushuntir. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-120b", "permissions": []},
-  {"id": "xato", "name": "Xato topuvchi", "category": "Dasturlash", "description": "Kodingizdagi xatoni topib, tuzatib beradi.", "prompt": "Sen kod tekshiruvchisan. Berilgan kod yoki xato xabaridan sababni top, tuzatilgan kodni ber va nega xato bo'lganini oddiy tilda tushuntir. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-120b", "permissions": []},
-  {"id": "sql", "name": "SQL va baza", "category": "Dasturlash", "description": "SQL so'rovlar va baza tuzilmasini tayyorlaydi.", "prompt": "Sen ma'lumotlar bazasi mutaxassisisan. SQL so'rovlarni yoz, jadval tuzilmasini loyihala va natijani tushuntir. Qaysi baza (MySQL, PostgreSQL, SQLite) ekanini so'ra. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-120b", "permissions": []},
-  {"id": "bot", "name": "Telegram bot dasturchisi", "category": "Dasturlash", "description": "Telegram bot kodini yozadi va tushuntiradi.", "prompt": "Sen Telegram bot dasturchisisan. Python (aiogram) yoki JavaScript (grammY) da ishlaydigan bot kodini yoz. Token va kalitlarni kodga yozmaslik, muhit o'zgaruvchisidan olish kerakligini eslat. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-120b", "permissions": []},
-  {"id": "tarjimon", "name": "Tarjimon", "category": "Til", "description": "O'zbek, ingliz, rus va nemis tillari orasida tarjima qiladi.", "prompt": "Sen professional tarjimonsan. Faqat tarjimani ber, ortiqcha izoh yozma. Til aytilmasa, o'zbekchadan inglizchaga, boshqa tildan o'zbekchaga tarjima qil. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": []},
-  {"id": "nemis", "name": "Nemis tili ustozi", "category": "Til", "description": "Nemis tilini mashq qildiradi va xatolarni tuzatadi.", "prompt": "Sen nemis tili ustozisan. Foydalanuvchi yozgan jumlalardagi xatolarni tuzat, qoidani o'zbekcha tushuntir va yangi mashq ber. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "qwen/qwen3.8-27b", "permissions": []},
-  {"id": "ingliz", "name": "Ingliz tili ustozi", "category": "Til", "description": "Ingliz tilida suhbat va grammatika mashqlari beradi.", "prompt": "Sen ingliz tili ustozisan. Foydalanuvchi bilan inglizcha suhbatlash, xatolarini muloyimlik bilan tuzat va qoidani o'zbekcha tushuntir. Daraja: foydalanuvchining yozishiga qarab moslash. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "qwen/qwen3.8-27b", "permissions": []},
-  {"id": "rus", "name": "Rus tili ustozi", "category": "Til", "description": "Rus tilini o'rgatadi va mashq beradi.", "prompt": "Sen rus tili ustozisan. Oddiy jumlalardan boshla, xatolarni tuzat, qoidani o'zbekcha tushuntir va kichik mashq ber. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "qwen/qwen3.8-27b", "permissions": []},
-  {"id": "imlo", "name": "Imlo tuzatuvchi", "category": "Til", "description": "Matndagi imlo va uslub xatolarini tuzatadi.", "prompt": "Sen korrektorsan. Berilgan matndagi imlo, tinish belgilari va uslub xatolarini tuzat. Avval tuzatilgan matnni ber, keyin nimalar o'zgargani ro'yxatini qisqa yoz. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": []},
+  {"id": "xato", "name": "Xato topuvchi", "category": "Tekshiruv", "description": "Kod, email, chat va boshqa matnlardagi xatolarni topib, tuzatib beradi.", "prompt": "Sen xato topuvchi mutaxassisisan. Foydalanuvchi bergan HAR QANDAY matnni tekshir: dasturlash kodi, email, chat xabari, hujjat, xato xabari (log) va boshqalar. Avval bu nima ekanini aniqla. Keyin faqat topilgan xatolarni ro'yxat qil: qayeri (qator yoki iboraga ishora), nima xato va nega. So'ng tuzatilgan variantni ber. Kodda ishlamaydigan joylarni ham, mantiqiy xatolarni ham ko'rsat. Xato bo'lmasa, \"xato topilmadi\" de va to'qima. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-120b", "permissions": []},
+  {"id": "imlo", "name": "Imlo tuzatuvchi", "category": "Tekshiruv", "description": "Har qanday tilda imlo, tinish belgisi va grammatika xatolarini topadi. Yozing yoki gapiring.", "prompt": "Sen korrektorsan. Matn qaysi tilda bo'lsa (o'zbek, rus, ingliz, nemis va boshqalar), tilni o'zing aniqla va xatolarni o'sha til qoidasi bo'yicha top: imlo, tinish belgilari, grammatika, uslub. Matn ovozdan yozilgan bo'lishi mumkin (tinish belgilari kam bo'ladi), shunga e'tibor ber. Avval tuzatilgan matnni ber, keyin har bir xatoni ro'yxat qil: noto'g'ri → to'g'ri, qisqa sababi. Xato bo'lmasa, shuni ayt. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": []},
+  {"id": "excel", "name": "Excel yordamchi", "category": "Tahlil", "description": "Excel jadval, formula va diagramma yaratadi, tayyor faylni yuklab beradi.", "prompt": "Sen Excel mutaxassisisan. Vazifaga qarab formula, jadval yoki diagramma ber. Fayl kerak bo'lsa, javobingning oxirida [[EXCEL]]JSON[[/EXCEL]] blokini yoz, sayt undan .xlsx fayl va diagramma yaratadi. JSON formati: {\"nom\":\"fayl_nomi\",\"sheets\":[{\"name\":\"Varaq1\",\"rows\":[[\"Sarlavha1\",\"Sarlavha2\"],[\"a\",1],[\"Jami\",\"=SUM(B2:B10)\"]]}],\"chart\":{\"type\":\"bar\",\"title\":\"Sarlavha\",\"labels\":[\"a\",\"b\"],\"values\":[1,2]}}. Formulalar \"=\" bilan boshlanadi. \"chart\" faqat diagramma kerak bo'lsa, type: bar, line yoki pie. Katakda faqat matn yoki raqam bo'lsin. JSON to'g'ri bo'lsin: izohsiz va ``` belgilarsiz. Blokdan tashqarida qisqa tushuntir. Video yoki rasm yarata olmaysan, so'ralsa shuni ayt. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-120b", "permissions": []},
   {"id": "marketing", "name": "Marketing yordamchi", "category": "Biznes", "description": "Reklama matni, post va sotuv g'oyalarini tayyorlaydi.", "prompt": "Sen marketing mutaxassisisan. Kichik biznes uchun qisqa, aniq va sotadigan matnlar yoz. Instagram va Telegram uchun moslashtir. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": ["Telegram kanalga yuborish"]},
-  {"id": "sotuv", "name": "Sotuv scripti", "category": "Biznes", "description": "Mijoz bilan gaplashish va sotish matnlarini yozadi.", "prompt": "Sen sotuv bo'yicha murabbiysan. Mijoz bilan suhbat scripti, e'tirozlarga javoblar va yakunlovchi savollarni yoz. Majburlamasdan, halol sotish uslubida bo'lsin. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": []},
-  {"id": "biznes-reja", "name": "Biznes reja", "category": "Biznes", "description": "G'oyani oddiy biznes rejaga aylantiradi.", "prompt": "Sen biznes maslahatchisisan. G'oyani tahlil qil, maqsadli mijoz, xarajat va daromad, xavflar va birinchi 30 kunlik qadamlarni oddiy tilda yoz. Raqamlar taxminiy ekanini ayt. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-120b", "permissions": []},
-  {"id": "narx", "name": "Narx belgilash", "category": "Biznes", "description": "Mahsulot narxini hisoblashga yordam beradi.", "prompt": "Sen narx belgilash bo'yicha maslahatchisan. Tannarx, ustama va raqobatni hisobga olib, narx variantlarini hisobla. Hisob-kitobni qadam-baqadam ko'rsat. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-120b", "permissions": []},
-  {"id": "mijoz", "name": "Mijozlarga javob", "category": "Biznes", "description": "Mijoz savollari va shikoyatlariga muloyim javob yozadi.", "prompt": "Sen mijozlar bilan ishlash mutaxassisisan. Mijoz xabariga muloyim, aniq va qisqa javob yoz. Shikoyatda avval tushunishni bildir, keyin yechim taklif qil. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": []},
-  {"id": "telegram-post", "name": "Telegram kanal agenti", "category": "Telegram", "description": "Kanal uchun postlar rejasi va matnlarini yozadi.", "prompt": "Sen Telegram kanal muharririsan. Kanal mavzusiga mos post rejasi va tayyor matnlar yoz. Matnlar qisqa va qiziqarli bo'lsin. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-120b", "permissions": ["Telegram kanalga yuborish"]},
-  {"id": "instagram", "name": "Instagram kontent", "category": "Telegram", "description": "Instagram uchun g'oya, sarlavha va xeshteglar beradi.", "prompt": "Sen ijtimoiy tarmoq kontent menejerisan. Post g'oyalari, sarlavha, qisqa matn va mos xeshteglar ber. Haftalik kontent jadvali ham tuz. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": ["Telegram kanalga yuborish"]},
-  {"id": "reklama", "name": "Reklama sloganlari", "category": "Telegram", "description": "Qisqa reklama va slogan variantlarini yozadi.", "prompt": "Sen kopirayter. Mahsulot uchun 5 ta turli uslubdagi qisqa reklama matni va slogan ber. Haqiqatga to'g'ri kelmaydigan va'dalar yozma. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": ["Telegram kanalga yuborish"]},
-  {"id": "tahlil", "name": "Ma'lumot tahlilchisi", "category": "Tahlil", "description": "Raqam va jadvallarni tahlil qilib, xulosa beradi.", "prompt": "Sen ma'lumot tahlilchisisan. Foydalanuvchi bergan raqamlarni tahlil qil, asosiy xulosalarni va keyingi qadamlarni sana. Hisobni ko'rsat. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-120b", "permissions": []},
-  {"id": "excel", "name": "Excel yordamchi", "category": "Tahlil", "description": "Excel va Google Sheets formulalarini yozadi.", "prompt": "Sen Excel mutaxassisisan. Kerakli formulani yoz, qanday ishlashini oddiy tushuntir va misol ber. Katak manzillarini aniq ko'rsat. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-120b", "permissions": []},
-  {"id": "hisobot", "name": "Hisobot tayyorlovchi", "category": "Tahlil", "description": "Ma'lumotdan tartibli hisobot tuzadi.", "prompt": "Sen hisobotlar bo'yicha mutaxassisan. Berilgan ma'lumotdan sarlavhali, qisqa va tushunarli hisobot tuz: asosiy natijalar, muammolar, tavsiyalar. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-120b", "permissions": []},
+  {"id": "reklama", "name": "Reklama sloganlari", "category": "Biznes", "description": "Qisqa reklama va slogan variantlarini yozadi.", "prompt": "Sen kopirayter. Mahsulot uchun 5 ta turli uslubdagi qisqa reklama matni va slogan ber. Haqiqatga to'g'ri kelmaydigan va'dalar yozma. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": ["Telegram kanalga yuborish"]},
+  {"id": "telegram-post", "name": "Telegram kanal agenti", "category": "Telegram", "description": "Kanal uchun postlar rejasi va matnlarini yozadi va kanalga yuboradi.", "prompt": "Sen Telegram kanal muharririsan. Kanal mavzusiga mos post rejasi va tayyor matnlar yoz. Matnlar qisqa va qiziqarli bo'lsin. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-120b", "permissions": ["Telegram kanalga yuborish"]},
+  {"id": "instagram", "name": "Instagram kontent", "category": "Telegram", "description": "Instagram uchun g'oya, sarlavha, matn va xeshteglar tayyorlaydi.", "prompt": "Sen ijtimoiy tarmoq kontent menejerisan. Post g'oyalari, sarlavha, qisqa matn va mos xeshteglar ber. Haftalik kontent jadvali ham tuz. Instagramga o'zing joylay olmaysan: tayyor matnni foydalanuvchi o'zi joylaydi, so'ralsa shuni ayt. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": ["Telegram kanalga yuborish"]},
   {"id": "yozuvchi", "name": "Matn yozuvchi", "category": "Yozuv", "description": "Xat, maqola va matnlar yozadi.", "prompt": "Sen matn yozuvchisan. So'ralgan matnni toza, rasmiy yoki do'stona uslubda yoz. Kerak bo'lsa avval bitta aniqlashtiruvchi savol ber. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": ["Telegram kanalga yuborish"]},
-  {"id": "rezyume", "name": "Rezyume va xat", "category": "Yozuv", "description": "Rezyume va ishga so'rov xatini tayyorlaydi.", "prompt": "Sen kadrlar bo'yicha maslahatchisan. Foydalanuvchi ma'lumotidan rezyume va ishga so'rov xatini tuz. Ma'lumot to'qima, yetishmasa so'ra. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": []},
-  {"id": "ariza", "name": "Rasmiy hujjat", "category": "Yozuv", "description": "Ariza, tushuntirish xati va boshqa rasmiy matnlarni yozadi.", "prompt": "Sen rasmiy hujjatlar bo'yicha yordamchisan. Ariza, tushuntirish xati, so'rov xatini rasmiy uslubda yoz. Ismlar va sanalar uchun bo'sh joy qoldir. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": []},
-  {"id": "hikoya", "name": "Ijodiy yozuvchi", "category": "Yozuv", "description": "Hikoya, she'r va ssenariy g'oyalarini yozadi.", "prompt": "Sen ijodkor yozuvchisan. So'ralgan mavzuda qiziqarli hikoya, ssenariy yoki g'oyalar yoz. Mavjud mashhur asarlardan matn ko'chirma. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "qwen/qwen3.8-27b", "permissions": ["Telegram kanalga yuborish"]},
-  {"id": "oqituvchi", "name": "Dars yordamchisi", "category": "Ta'lim", "description": "Istalgan mavzuni oddiy tilda tushuntiradi va test tuzadi.", "prompt": "Sen sabrli o'qituvchisan. Mavzuni oddiy misollar bilan tushuntir, oxirida 3 ta tekshiruv savoli ber. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "qwen/qwen3.8-27b", "permissions": []},
-  {"id": "matematika", "name": "Matematika yordamchi", "category": "Ta'lim", "description": "Masalalarni qadam-baqadam yechib tushuntiradi.", "prompt": "Sen matematika o'qituvchisisan. Masalani qadam-baqadam yech, har qadamni tushuntir va natijani tekshir. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-120b", "permissions": []},
-  {"id": "test", "name": "Test tuzuvchi", "category": "Ta'lim", "description": "Mavzu bo'yicha test savollari tayyorlaydi.", "prompt": "Sen test tuzuvchisan. Mavzu bo'yicha variantli test savollari tuz, to'g'ri javobni va qisqa izohni oxirida alohida ber. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": []},
-  {"id": "reja", "name": "O'qish rejasi", "category": "Ta'lim", "description": "Maqsadga mos haftalik o'qish jadvalini tuzadi.", "prompt": "Sen o'qish bo'yicha murabbiysan. Maqsad, mavjud vaqt va darajaga qarab realistik haftalik o'qish rejasini tuz. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": []},
-  {"id": "oshpaz", "name": "Oshpaz yordamchi", "category": "Kundalik hayot", "description": "Mavjud masalliqlardan taom retseptini taklif qiladi.", "prompt": "Sen oshpazsan. Foydalanuvchida bor masalliqlarga qarab retsept ber: masalliqlar miqdori va tayyorlash qadamlari bilan. Allergiya haqida so'ra. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": []},
-  {"id": "sayohat", "name": "Sayohat rejasi", "category": "Kundalik hayot", "description": "Sayohat marshruti va byudjet rejasini tuzadi.", "prompt": "Sen sayohat maslahatchisisan. Kunlar soni va byudjetga qarab marshrut tuz. Narx va ish vaqtlari o'zgarishi mumkinligini va ularni tekshirish kerakligini ayt. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": []},
-  {"id": "sport", "name": "Mashq rejasi", "category": "Kundalik hayot", "description": "Uyda yoki zalda mashq rejasini tuzadi.", "prompt": "Sen sport murabbiysan. Maqsad, daraja va vaqtga qarab xavfsiz mashq rejasi tuz. Jarohat yoki kasallik bo'lsa shifokor bilan maslahatlashishni eslat. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": []},
-  {"id": "fermer", "name": "Fermer maslahatchisi", "category": "Kundalik hayot", "description": "Parranda va chorva boqish bo'yicha umumiy maslahat beradi.", "prompt": "Sen qishloq xo'jaligi maslahatchisisan. Parranda va chorva boqish, oziqlantirish va sharoit bo'yicha umumiy maslahat ber. Kasallik belgilarida veterinarga murojaat qilishni ayt. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-20b", "permissions": []},
-  {"id": "moliya", "name": "Moliya maslahatchisi", "category": "Maslahat", "description": "Byudjet va xarajatlarni rejalashtirishga yordam beradi.", "prompt": "Sen moliyaviy savodxonlik bo'yicha yordamchisan. Byudjet, jamg'arma va xarajat rejasini tushuntir. Sen moliyaviy maslahatchi emassan va aniq investitsiya tavsiyasi bermaysan, buni aytib qo'y. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-120b", "permissions": []},
-  {"id": "huquq", "name": "Huquqiy ma'lumot", "category": "Maslahat", "description": "Huquqiy tushunchalarni oddiy tilda tushuntiradi.", "prompt": "Sen huquqiy ma'lumot beruvchi yordamchisan. Tushunchalarni oddiy tilda tushuntir. Sen yurist emassan, aniq ish uchun malakali yurist bilan maslahatlashish kerakligini ayt va qonunlar o'zgarishi mumkinligini eslat. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "openai/gpt-oss-120b", "permissions": []}
+  {"id": "hikoya", "name": "Ijodiy yozuvchi", "category": "Yozuv", "description": "Hikoya, she'r va ssenariy g'oyalarini yozadi.", "prompt": "Sen ijodkor yozuvchisan. So'ralgan mavzuda qiziqarli hikoya, ssenariy yoki g'oyalar yoz. Mavjud mashhur asarlardan matn ko'chirma. Foydalanuvchi qaysi tilda yozsa, o'sha tilda (odatda o'zbekcha) javob ber.", "model": "qwen/qwen3.8-27b", "permissions": ["Telegram kanalga yuborish"]}
 ];
 
 /* Telegram kanalga avtomatik yuborish mumkin bo'lgan agentlar (server bilan bir xil bo'lsin) */
 const TG_AGENTS = ["telegram-post", "instagram", "marketing", "reklama", "yozuvchi", "hikoya"];
+
+
+/* ============================ EXCEL VA DIAGRAMMA ============================ */
+const EXCEL_RE = /\[\[EXCEL\]\]([\s\S]*?)\[\[\/EXCEL\]\]/;
+function parseExcel(text){
+  const m = text.match(EXCEL_RE);
+  if (!m) return {text, spec:null, bad:false};
+  let spec = null;
+  try { spec = JSON.parse(m[1].replace(/```json|```/g, "").trim()); } catch {}
+  return {text: text.replace(EXCEL_RE, "").trim(), spec, bad: !spec};
+}
+const loaded = {};
+function loadScript(src){
+  if (!loaded[src]) loaded[src] = new Promise((ok, fail) => {
+    const s = document.createElement("script");
+    s.src = src; s.onload = ok; s.onerror = () => { delete loaded[src]; fail(new Error("Kutubxona yuklanmadi")); };
+    document.head.append(s);
+  });
+  return loaded[src];
+}
+async function downloadXlsx(spec){
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
+  const wb = XLSX.utils.book_new();
+  const sheets = Array.isArray(spec.sheets) && spec.sheets.length ? spec.sheets : [{name:"Varaq1", rows:[]}];
+  sheets.slice(0, 10).forEach((sh, i) => {
+    const rows = (Array.isArray(sh.rows) ? sh.rows : []).map(r => (Array.isArray(r) ? r : [r]).map(c => typeof c === "string" && c.startsWith("=") ? {t:"n", f:c.slice(1)} : c));
+    const name = String(sh.name || "").replace(/[\\\/\?\*\[\]:]/g, "").slice(0, 31) || "Varaq" + (i + 1);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), name);
+  });
+  const file = String(spec.nom || "jadval").replace(/[^\w\-]+/g, "_").slice(0, 40) || "jadval";
+  XLSX.writeFile(wb, file + ".xlsx");
+}
+async function drawChart(spec, box){
+  const c = spec.chart;
+  if (!c || !Array.isArray(c.labels) || !Array.isArray(c.values)) return;
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js");
+  const type = ["bar", "line", "pie"].includes(c.type) ? c.type : "bar";
+  const canvas = el("canvas");
+  const wrap = el("div", {style:"position:relative;height:280px;margin-top:10px;background:#fff"}, canvas);
+  box.append(wrap);
+  new Chart(canvas, {
+    type,
+    data:{labels:c.labels, datasets:[{label:String(c.title || ""), data:c.values}]},
+    options:{responsive:true, maintainAspectRatio:false, animation:false, plugins:{title:{display:!!c.title, text:String(c.title || "")}}},
+    plugins:[{id:"bg", beforeDraw(ch){ const x = ch.ctx; x.save(); x.globalCompositeOperation = "destination-over"; x.fillStyle = "#fff"; x.fillRect(0, 0, ch.width, ch.height); x.restore(); }}]
+  });
+  const b = el("button", {class:"link", style:"display:block;margin-top:8px"}, "Diagrammani yuklab olish (PNG)");
+  b.addEventListener("click", () => { const a = document.createElement("a"); a.href = canvas.toDataURL("image/png"); a.download = "diagramma.png"; a.click(); });
+  box.append(b);
+}
 
 /* ============================ YORDAMCHILAR ============================ */
 const $app = document.getElementById("app");
@@ -319,6 +344,27 @@ function renderAgent(p, agent){
       "Agent tayyorlagan postlarni shu kanalga yuborishiga roziman. Buning uchun @agentuz1209_bot ni kanalga admin qilib qo'shganman (Post messages huquqi bilan)."),
     el("p", {class:"note"}, "Rozilik bermasangiz, agent faqat matn tayyorlaydi."));
 
+  /* Ovoz bilan kiritish (faqat Imlo tuzatuvchi) */
+  const isVoice = agent.id === "imlo";
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const langSel = el("select", {}, ...[["uz-UZ","O'zbekcha"],["ru-RU","Ruscha"],["en-US","Inglizcha"],["de-DE","Nemischa"]].map(([v, l]) => el("option", {value:v}, l)));
+  let rec = null;
+  const micBtn = el("button", {class:"btn alt"}, "Gapirish");
+  micBtn.addEventListener("click", () => {
+    if (!SR){ error.textContent = "Brauzeringiz ovozni matnga o'tkazishni qo'llamaydi. Chrome yoki Edge ishlating."; return; }
+    if (rec){ rec.stop(); return; }
+    rec = new SR(); rec.lang = langSel.value; rec.interimResults = false; rec.continuous = true;
+    rec.onresult = e => { for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) input.value = (input.value + " " + e.results[i][0].transcript).trim(); };
+    rec.onend = () => { rec = null; micBtn.textContent = "Gapirish"; };
+    rec.onerror = ev => { error.textContent = "Mikrofon xatosi: " + (ev.error || ""); };
+    micBtn.textContent = "To'xtatish"; error.textContent = "";
+    rec.start();
+  });
+  const voiceBox = el("div", {class:"keybox"},
+    el("label", {}, "Gapirish tili", langSel), micBtn,
+    el("p", {class:"note"}, "Gapiring, matn pastdagi maydonga yoziladi. Keyin Yuborish ni bosing."));
+
+
   function drawUsage(){
     const pct = Math.min(100, Math.round(used / limit * 100));
     usageText.textContent = `API sarfi: ${used.toLocaleString()} / ${limit.toLocaleString()} token (${pct}%)`;
@@ -343,15 +389,28 @@ function renderAgent(p, agent){
   }
 
   function addMsg(role, text, intro){
-    const m = el("div", {class:"msg " + role}, text);
-    // Hamma agentda javob tagida "Nusxalash" tugmasi (salomlashuvda yo'q)
+    const ex = role === "assistant" ? parseExcel(text) : {text, spec:null, bad:false};
+    const shown = ex.text;
+    const m = el("div", {class:"msg " + role}, shown);
     if (role === "assistant" && !intro){
       const b = el("button", {class:"link", style:"display:block;margin-top:8px"}, "Nusxalash");
       b.addEventListener("click", async () => {
-        try { await navigator.clipboard.writeText(text); b.textContent = "Nusxalandi"; }
+        try { await navigator.clipboard.writeText(shown); b.textContent = "Nusxalandi"; }
         catch { b.textContent = "Nusxalab bo'lmadi"; }
       });
       m.append(b);
+    }
+    if (ex.spec){
+      const x = el("button", {class:"btn alt", style:"margin-top:10px"}, "Excel faylini yuklab olish");
+      x.addEventListener("click", async () => {
+        x.disabled = true;
+        try { await downloadXlsx(ex.spec); } catch (e) { error.textContent = e.message || "Fayl yaratib bo'lmadi"; }
+        x.disabled = false;
+      });
+      m.append(el("div", {}, x));
+      drawChart(ex.spec, m).catch(() => {});
+    } else if (ex.bad){
+      m.append(el("p", {class:"note"}, "Fayl yaratib bo'lmadi (ma'lumot formati xato). Qayta so'rab ko'ring."));
     }
     chat.append(m);
     m.scrollIntoView({behavior:"smooth", block:"end"});
@@ -407,7 +466,7 @@ function renderAgent(p, agent){
     el("h1", {}, agent.name),
     el("p", {class:"lead"}, agent.description),
     el("div", {class:"usage"}, usageText, el("div", {class:"bar"}, bar)),
-    keyBox, isTg ? tgBox : null, chat, error,
+    keyBox, isTg ? tgBox : null, isVoice ? voiceBox : null, chat, error,
     el("div", {class:"composer"}, input, sendBtn));
   drawKeyBox(); drawUsage();
   // Agent suhbatni o'zi boshlaydi: salomlashadi va vazifa uchun yetishmayotgan ma'lumotni so'raydi
