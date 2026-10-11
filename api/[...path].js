@@ -10,13 +10,18 @@ const BUILTIN_AGENTS = {"kod": {"systemPrompt": "Sen tajribali dasturchisan. Kod
 
 function app() {
   if (getApps().length) return getApps()[0];
-  return initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: (process.env.FIREBASE_PRIVATE_KEY || "").trim().replace(/^["']|["']$/g, "").replace(/\\n/g, "\n"),
-    }),
-  });
+  const fix = (k) => String(k || "").trim().replace(/^["']|["']$/g, "").replace(/\\n/g, "\n");
+  let projectId = process.env.FIREBASE_PROJECT_ID;
+  let clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  let privateKey = fix(process.env.FIREBASE_PRIVATE_KEY);
+  // Oson variant: butun service account JSON bitta o'zgaruvchida (FIREBASE_SERVICE_ACCOUNT)
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    const j = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    projectId = j.project_id;
+    clientEmail = j.client_email;
+    privateKey = j.private_key;
+  }
+  return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
 }
 
 // Telegram Login Widget ma'lumotini tekshirish
