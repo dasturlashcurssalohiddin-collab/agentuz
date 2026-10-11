@@ -381,8 +381,8 @@ function renderAgent(p, agent){
     keyBox, chat, error,
     el("div", {class:"composer"}, input, sendBtn));
   drawKeyBox(); drawUsage();
-  // Agent suhbatni o'zi boshlaydi: tanishadi va vazifa uchun kerakli narsani so'raydi
-  const START = "Suhbatni boshla: ismim bilan salomlash, o'zingni bir jumlada tanishtir va vazifa uchun kerak bo'lgan birinchi savolni ber.";
+  // Agent suhbatni o'zi boshlaydi: salomlashadi va vazifa uchun yetishmayotgan ma'lumotni so'raydi
+  const START = "Suhbatni boshla: mening ismim bilan salomlash va o'zingni bir jumlada tanishtir. Yetishmayotgan ma'lumotlardan birinchisini so'ra. Agar hammasi bor bo'lsa, vazifani yozishni so'ra. Tayyor natija yozma.";
   async function begin(){
     if (used >= limit) return;
     msgs.push({role:"user", content:START});
